@@ -1,7 +1,6 @@
 use std::net::TcpListener;
 
 use once_cell::sync::Lazy;
-use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 
@@ -48,7 +47,7 @@ async fn spawn_app() -> TestApp {
 }
 
 pub async fn configure_db(config: &DatabaseSettings) -> PgPool {
-    let mut conn = PgConnection::connect(&config.connection_string_without_db().expose_secret())
+    let mut conn = PgConnection::connect_with(&config.without_db())
         .await
         .expect("Failed to connect to db");
 
@@ -56,7 +55,7 @@ pub async fn configure_db(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create db");
 
-    let connection_pool = PgPool::connect(&config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres.");
 
@@ -86,15 +85,9 @@ async fn health_check_works() {
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     let app = spawn_app().await;
-    let config = get_config().expect("Failed to read configuration");
-    let connection_str = config.db.connection_string();
-
-    let mut connection = PgConnection::connect(connection_str.expose_secret().as_str())
-        .await
-        .expect("Failed to connect to db");
-
     let client = reqwest::Client::new();
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
     let response = client
         .post(&format!("{}/subscriptions", &app.addr))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -105,7 +98,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&mut connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch");
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");

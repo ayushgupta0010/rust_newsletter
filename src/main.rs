@@ -1,7 +1,6 @@
 use std::net::TcpListener;
 
-use secrecy::ExposeSecret;
-use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 use zero2prod::{
     configuration::get_config,
@@ -15,13 +14,16 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(subscriber);
 
     let config = get_config().expect("Failed to read configuration");
-    let conn_pool = PgPool::connect(&config.db.connection_string().expose_secret())
-        .await
-        .expect("Error connecting to pool");
+    let conn_pool = PgPoolOptions::new()
+        .idle_timeout(std::time::Duration::from_secs(2))
+        .connect_lazy_with(config.db.with_db());
 
-    let addr = format!("127.0.0.1:{}", config.port);
+    let addr = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(addr)?;
 
-    println!("Server running on http://127.0.0.1:8000");
+    println!(
+        "Server running on http://{}:{}",
+        config.application.host, config.application.port
+    );
     run(listener, conn_pool)?.await
 }
