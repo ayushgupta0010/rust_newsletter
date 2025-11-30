@@ -4,6 +4,7 @@ use sqlx::postgres::PgPoolOptions;
 
 use zero2prod::{
     configuration::get_config,
+    email_client::EmailClient,
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -18,6 +19,18 @@ async fn main() -> std::io::Result<()> {
         .idle_timeout(std::time::Duration::from_secs(2))
         .connect_lazy_with(config.db.with_db());
 
+    let sender_email = config
+        .email_client
+        .sender()
+        .expect("Invalid sender email address");
+    let timeout = config.email_client.timeout();
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        sender_email,
+        config.email_client.auth_token,
+        timeout,
+    );
+
     let addr = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(addr)?;
 
@@ -25,5 +38,5 @@ async fn main() -> std::io::Result<()> {
         "Server running on http://{}:{}",
         config.application.host, config.application.port
     );
-    run(listener, conn_pool)?.await
+    run(listener, conn_pool, email_client)?.await
 }

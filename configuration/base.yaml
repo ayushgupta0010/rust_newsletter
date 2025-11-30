@@ -7,3 +7,9 @@ db:
   username: "postgres"
   password: "password"
   db_name: "newsletter"
+
+email_client:
+  base_url: "localhost"
+  sender_email: "test@gmail.com"
+  auth_token: "my-token"
+  timeout_ms: 10000

@@ -15,6 +15,18 @@ if ! [ -x "$(command -v sqlx)" ]; then
     exit 1
 fi
 
+# Start Docker service
+echo "Starting Docker..."
+sudo systemctl start docker
+
+# Verify Docker is running
+if systemctl is-active --quiet docker; then
+    echo "Docker is running."
+else
+    echo "Failed to start Docker."
+    exit 1
+fi
+
 # Check if a custom user has been set, otherwise default to 'postgres'
 DB_USER=${POSTGRES_USER:=postgres}
 # Check if a custom password has been set, otherwise default to 'password'

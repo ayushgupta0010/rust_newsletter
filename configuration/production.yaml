@@ -3,3 +3,8 @@ application:
 
 db:
   require_ssl: true
+
+email_client:
+  base_url: "https://api.postmarkapp.com"
+  sender_email: "newsletter@rust.com"
+  auth_token: "my-token"
